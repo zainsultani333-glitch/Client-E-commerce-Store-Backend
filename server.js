@@ -1,5 +1,5 @@
 const express = require("express");
-const mongoose = require("mongoose");
+const connectDB = require("./config/db");
 const cors = require("cors");
 require("dotenv").config();
 
@@ -53,16 +53,10 @@ async function seedAdmin() {
 
 const PORT = process.env.PORT || 5000;
 
-mongoose.connect(process.env.MONGO_URI)
-  .then(async () => {
-    console.log("✅ MongoDB Connected");
-    await seedAdmin();
-    app.listen(PORT, () => {
-      console.log(`🚀 Server running on port ${PORT}`);
-      console.log(`📦 API: http://localhost:${PORT}/api`);
-    });
-  })
-  .catch((err) => {
-    console.error("❌ MongoDB connection failed:", err.message);
-    process.exit(1);
+connectDB().then(async () => {
+  await seedAdmin();
+  app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`📦 API: http://localhost:${PORT}/api`);
   });
+});
