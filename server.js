@@ -60,3 +60,5 @@ connectDB().then(async () => {
     console.log(`📦 API: http://localhost:${PORT}/api`);
   });
 });
+
+module.exports = app;
