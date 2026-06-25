@@ -11,7 +11,7 @@ const uploadRoutes = require("./routes/uploadRoutes");
 const app = express();
 
 app.use(cors({
-  origin: ["http://localhost:5173", "http://localhost:3000"],
+  origin: ["http://localhost:5173", "http://localhost:3000", "https://client-e-commerce-store-frontend.vercel.app"],
   credentials: true
 }));
 app.use(express.json());
