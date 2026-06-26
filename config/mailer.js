@@ -103,4 +103,63 @@ async function sendOrderEmail(receipt) {
   await transporter.sendMail(mailOptions);
 }
 
-module.exports = { sendOrderEmail };
+/**
+ * Send contact form submission email to admin
+ */
+async function sendContactEmail(contactData) {
+  const html = `
+<!DOCTYPE html>
+<html>
+<head><meta charset="utf-8"><title>New Contact Message</title></head>
+<body style="margin:0;padding:0;background:#0d0d0f;font-family:'Segoe UI',Arial,sans-serif;">
+  <div style="max-width:600px;margin:0 auto;padding:32px 16px;">
+
+    <!-- Header -->
+    <div style="background:linear-gradient(135deg,#141417,#1e1e24);border:1px solid rgba(201,168,76,0.3);border-radius:16px;overflow:hidden;margin-bottom:24px;">
+      <div style="background:linear-gradient(90deg,#c9a84c,#e8c96e,#c9a84c);height:4px;"></div>
+      <div style="padding:28px 32px;text-align:center;">
+        <div style="width:52px;height:52px;background:linear-gradient(135deg,#c9a84c,#e8c96e);border-radius:12px;display:inline-flex;align-items:center;justify-content:center;font-size:22px;font-weight:900;color:#0d0d0f;margin-bottom:12px;">✉️</div>
+        <h1 style="margin:0;color:#f5f5f0;font-size:20px;">New Contact Message!</h1>
+        <p style="margin:6px 0 0;color:#a8a89e;font-size:13px;">Saleem's Garments — Admin Notification</p>
+      </div>
+    </div>
+
+    <!-- Customer Info -->
+    <div style="background:#141417;border:1px solid #222;border-radius:12px;padding:24px;margin-bottom:16px;">
+      <h2 style="margin:0 0 16px;color:#c9a84c;font-size:14px;text-transform:uppercase;letter-spacing:1px;">👤 Sender Details</h2>
+      <table style="width:100%;border-collapse:collapse;">
+        <tr><td style="padding:6px 0;color:#a8a89e;font-size:13px;width:120px;">Name</td><td style="padding:6px 0;color:#f5f5f0;font-weight:600;">${contactData.firstName} ${contactData.lastName}</td></tr>
+        <tr><td style="padding:6px 0;color:#a8a89e;font-size:13px;">Email</td><td style="padding:6px 0;color:#f5f5f0;">${contactData.email}</td></tr>
+        <tr><td style="padding:6px 0;color:#a8a89e;font-size:13px;">Subject</td><td style="padding:6px 0;color:#f5f5f0;font-weight:600;">${contactData.subject}</td></tr>
+      </table>
+    </div>
+
+    <!-- Message -->
+    <div style="background:#141417;border:1px solid #222;border-radius:12px;padding:24px;margin-bottom:16px;">
+      <h2 style="margin:0 0 16px;color:#c9a84c;font-size:14px;text-transform:uppercase;letter-spacing:1px;">📝 Message</h2>
+      <p style="color:#f5f5f0;font-size:14px;line-height:1.6;margin:0;white-space:pre-wrap;">${contactData.message}</p>
+    </div>
+
+    <!-- Footer -->
+    <div style="text-align:center;padding:16px;">
+      <p style="color:#65655e;font-size:12px;margin:0;">
+        Received: ${new Date().toLocaleString("en-PK", { dateStyle: "long", timeStyle: "short" })}
+      </p>
+      <p style="color:#65655e;font-size:11px;margin:8px 0 0;">Saleem's Garments Admin Panel</p>
+    </div>
+
+  </div>
+</body>
+</html>`;
+
+  const mailOptions = {
+    from: `"Saleem's Garments 🛍️" <${process.env.EMAIL_USER}>`,
+    to: process.env.NOTIFY_EMAIL,
+    subject: `✉️ New Contact: ${contactData.subject} — ${contactData.firstName} ${contactData.lastName}`,
+    html,
+  };
+
+  await transporter.sendMail(mailOptions);
+}
+
+module.exports = { sendOrderEmail, sendContactEmail };
