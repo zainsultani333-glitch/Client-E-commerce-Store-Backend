@@ -46,7 +46,7 @@ router.post("/", authMiddleware, async (req, res) => {
       paymentMethod: paymentMethod || "Cash on Delivery",
       products,
       totalAmount,
-      status: "completed"
+      status: "unconfirmed"
     });
 
     const savedReceipt = await receipt.save();
@@ -105,6 +105,28 @@ router.get("/:id", authMiddleware, async (req, res) => {
     if (req.user.role !== "admin" && String(receipt.userId) !== String(req.user.id)) {
       return res.status(403).json({ message: "Access denied" });
     }
+
+    res.json(receipt);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
+});
+// Update receipt status (Admin only)
+router.put("/:id/status", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const { status } = req.body;
+    const validStatuses = ["unconfirmed", "pending", "running", "completed"];
+    if (!validStatuses.includes(status)) {
+      return res.status(400).json({ message: "Invalid status" });
+    }
+
+    const receipt = await Receipt.findByIdAndUpdate(
+      req.params.id,
+      { status },
+      { new: true }
+    ).populate("userId", "name email");
+
+    if (!receipt) return res.status(404).json({ message: "Receipt not found" });
 
     res.json(receipt);
   } catch (error) {

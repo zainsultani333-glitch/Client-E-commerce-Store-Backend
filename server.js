@@ -22,6 +22,8 @@ app.use("/api/products", productRoutes);
 app.use("/api/receipts", receiptRoutes);
 app.use("/api/upload", uploadRoutes);
 app.use("/api/contact", require("./routes/contactRoutes"));
+app.use("/api/categories", require("./routes/categoryRoutes"));
+app.use("/api/cart", require("./routes/cartRoutes"));
 
 // Health check
 app.get("/api/health", (req, res) => {
