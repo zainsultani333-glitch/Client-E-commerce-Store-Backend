@@ -30,13 +30,13 @@ router.get("/:id", async (req, res) => {
 // Add product (Admin only)
 router.post("/", authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const { name, description, price, quantity, category, sizes, colors, images, cloudinaryIds } = req.body;
+    const { name, description, price, originalPrice, quantity, category, sizes, colors, images, cloudinaryIds } = req.body;
 
     if (!name || price === undefined || quantity === undefined) {
       return res.status(400).json({ message: "Name, price and quantity are required" });
     }
 
-    const product = await Product.create({ name, description, price, quantity, category, sizes, colors, images, cloudinaryIds });
+    const product = await Product.create({ name, description, price, originalPrice, quantity, category, sizes, colors, images, cloudinaryIds });
     res.status(201).json(product);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -92,6 +92,51 @@ router.delete("/:id", authMiddleware, adminMiddleware, async (req, res) => {
 
     await product.deleteOne();
     res.json({ message: "Product deleted successfully" });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Add a review to a product (Public)
+router.post("/:id/reviews", async (req, res) => {
+  try {
+    const { userName, rating, comment } = req.body;
+    
+    if (!userName || !rating || !comment) {
+      return res.status(400).json({ message: "Name, rating, and comment are required" });
+    }
+
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ message: "Product not found" });
+
+    const review = {
+      userName,
+      rating: Number(rating),
+      comment
+    };
+
+    product.reviews.push(review);
+    await product.save();
+
+    res.status(201).json({ message: "Review added successfully", product });
+  } catch (error) {
+    res.status(500).json({ message: error.message });
+  }
+});
+
+// Delete a review from a product (Admin only)
+router.delete("/:id/reviews/:reviewId", authMiddleware, adminMiddleware, async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) return res.status(404).json({ message: "Product not found" });
+
+    const reviewIndex = product.reviews.findIndex(r => r._id.toString() === req.params.reviewId);
+    if (reviewIndex === -1) return res.status(404).json({ message: "Review not found" });
+
+    product.reviews.splice(reviewIndex, 1);
+    await product.save();
+
+    res.json({ message: "Review deleted successfully", product });
   } catch (error) {
     res.status(500).json({ message: error.message });
   }
