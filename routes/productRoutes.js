@@ -30,13 +30,21 @@ router.get("/:id", async (req, res) => {
 // Add product (Admin only)
 router.post("/", authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const { name, description, price, originalPrice, quantity, category, sizes, colors, images, cloudinaryIds } = req.body;
+    let { name, description, price, originalPrice, quantity, category, sizes, colors, images, cloudinaryIds, discountPercentage } = req.body;
 
     if (!name || price === undefined || quantity === undefined) {
       return res.status(400).json({ message: "Name, price and quantity are required" });
     }
 
-    const product = await Product.create({ name, description, price, originalPrice, quantity, category, sizes, colors, images, cloudinaryIds });
+    if (discountPercentage > 0) {
+      originalPrice = price;
+      price = price - (price * (discountPercentage / 100));
+    } else {
+      originalPrice = null;
+      discountPercentage = 0;
+    }
+
+    const product = await Product.create({ name, description, price, originalPrice, discountPercentage, quantity, category, sizes, colors, images, cloudinaryIds });
     res.status(201).json(product);
   } catch (error) {
     res.status(500).json({ message: error.message });
@@ -61,9 +69,18 @@ router.put("/:id", authMiddleware, adminMiddleware, async (req, res) => {
       }
     }
 
+    let updateData = { ...req.body };
+    if (updateData.discountPercentage > 0) {
+      updateData.originalPrice = updateData.price;
+      updateData.price = updateData.price - (updateData.price * (updateData.discountPercentage / 100));
+    } else if ('discountPercentage' in updateData) {
+      updateData.originalPrice = null;
+      updateData.discountPercentage = 0;
+    }
+
     const updated = await Product.findByIdAndUpdate(
       req.params.id,
-      req.body,
+      updateData,
       { new: true, runValidators: true }
     );
     res.json(updated);

@@ -44,8 +44,8 @@ const receiptSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ["unconfirmed", "pending", "running", "completed"],
-    default: "unconfirmed"
+    enum: ["pending", "processing", "completed", "cancelled"],
+    default: "pending"
   }
 }, { timestamps: true });
 
