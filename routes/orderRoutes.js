@@ -1,12 +1,13 @@
 const express = require("express");
 const router = express.Router();
-const Receipt = require("../models/Receipt");
+const Order = require("../models/Order");
 const Product = require("../models/Product");
+const User = require("../models/User");
 const authMiddleware = require("../middleware/authMiddleware");
 const adminMiddleware = require("../middleware/adminMiddleware");
 const { sendOrderEmail } = require("../config/mailer");
 
-// Create Receipt — any logged-in user (COD order)
+// Create Order — any logged-in user (COD order)
 router.post("/", authMiddleware, async (req, res) => {
   try {
     const { customerName, customerEmail, phone, address, products, totalAmount, paymentMethod } = req.body;
@@ -37,7 +38,7 @@ router.post("/", authMiddleware, async (req, res) => {
     }
 
     // ── SAVE RECEIPT ──
-    const receipt = new Receipt({
+    const order = new Order({
       userId: req.user.id,
       customerName,
       customerEmail: customerEmail || "",
@@ -49,7 +50,14 @@ router.post("/", authMiddleware, async (req, res) => {
       status: "pending"
     });
 
-    const savedReceipt = await receipt.save();
+    const savedOrder = await order.save();
+
+    // ── UPDATE USER PROFILE WITH LATEST PHONE AND ADDRESS ──
+    if (req.user && req.user.id) {
+      await User.findByIdAndUpdate(req.user.id, {
+        $set: { phone: phone || "", address: address || "" }
+      });
+    }
 
     // ── DEDUCT STOCK ──
     // Bulk-update all product quantities atomically
@@ -64,88 +72,88 @@ router.post("/", authMiddleware, async (req, res) => {
     console.log(`📦 Stock updated for ${products.length} product(s) after order by ${customerName}`);
 
     // ── SEND EMAIL ──
-    sendOrderEmail(savedReceipt).catch((err) => {
+    sendOrderEmail(savedOrder).catch((err) => {
       console.error("❌ Email notification failed:", err.message);
     });
 
-    res.status(201).json(savedReceipt);
+    res.status(201).json(savedOrder);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Get All Receipts (Admin only)
+// Get All Orders (Admin only)
 router.get("/", authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const receipts = await Receipt.find()
+    const orders = await Order.find()
       .populate("userId", "name email")
       .sort({ createdAt: -1 });
-    res.json(receipts);
+    res.json(orders);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Get user's own receipts
+// Get user's own orders
 router.get("/my/orders", authMiddleware, async (req, res) => {
   try {
-    const receipts = await Receipt.find({ userId: req.user.id }).sort({ createdAt: -1 });
-    res.json(receipts);
+    const orders = await Order.find({ userId: req.user.id }).sort({ createdAt: -1 });
+    res.json(orders);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Get single receipt by ID
+// Get single order by ID
 router.get("/:id", authMiddleware, async (req, res) => {
   try {
-    const receipt = await Receipt.findById(req.params.id).populate("userId", "name email");
-    if (!receipt) return res.status(404).json({ message: "Receipt not found" });
+    const order = await Order.findById(req.params.id).populate("userId", "name email");
+    if (!order) return res.status(404).json({ message: "Order not found" });
 
-    if (req.user.role !== "admin" && String(receipt.userId) !== String(req.user.id)) {
+    if (req.user.role !== "admin" && String(order.userId) !== String(req.user.id)) {
       return res.status(403).json({ message: "Access denied" });
     }
 
-    res.json(receipt);
+    res.json(order);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
-// Update receipt status (Admin only)
+// Update order status (Admin only)
 router.put("/:id/status", authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const { status } = req.body;
-    const validStatuses = ["pending", "processing", "completed", "cancelled"];
+    const validStatuses = ["pending", "processing", "shipped", "completed", "cancelled"];
     if (!validStatuses.includes(status)) {
       return res.status(400).json({ message: "Invalid status" });
     }
 
-    const existingReceipt = await Receipt.findById(req.params.id);
-    if (!existingReceipt) return res.status(404).json({ message: "Receipt not found" });
+    const existingOrder = await Order.findById(req.params.id);
+    if (!existingOrder) return res.status(404).json({ message: "Order not found" });
 
-    if (existingReceipt.status === "completed") {
+    if (existingOrder.status === "completed") {
       return res.status(400).json({ message: "Cannot change status of a completed order" });
     }
 
-    const receipt = await Receipt.findByIdAndUpdate(
+    const order = await Order.findByIdAndUpdate(
       req.params.id,
       { status },
       { new: true }
     ).populate("userId", "name email");
 
-    res.json(receipt);
+    res.json(order);
   } catch (error) {
     res.status(500).json({ error: error.message });
   }
 });
 
-// Edit receipt details and items (Admin only)
+// Edit order details and items (Admin only)
 router.put("/:id", authMiddleware, adminMiddleware, async (req, res) => {
   try {
     const { customerName, customerEmail, phone, address, products, totalAmount } = req.body;
     
-    const oldReceipt = await Receipt.findById(req.params.id);
-    if (!oldReceipt) return res.status(404).json({ message: "Receipt not found" });
+    const oldOrder = await Order.findById(req.params.id);
+    if (!oldOrder) return res.status(404).json({ message: "Order not found" });
 
     // Validate new stock if products are updated
     if (products && products.length > 0) {
@@ -154,7 +162,7 @@ router.put("/:id", authMiddleware, adminMiddleware, async (req, res) => {
 
       const stockErrors = [];
       for (const newObj of products) {
-        const oldItem = oldReceipt.products.find(o => String(o.productId) === String(newObj.productId));
+        const oldItem = oldOrder.products.find(o => String(o.productId) === String(newObj.productId));
         const oldQty = oldItem ? oldItem.quantity : 0;
         
         const dbProduct = dbProducts.find(p => String(p._id) === String(newObj.productId));
@@ -173,7 +181,7 @@ router.put("/:id", authMiddleware, adminMiddleware, async (req, res) => {
       }
 
       // RESTORE OLD STOCK
-      const restoreOps = oldReceipt.products.map(item => ({
+      const restoreOps = oldOrder.products.map(item => ({
         updateOne: {
           filter: { _id: item.productId },
           update: { $inc: { quantity: item.quantity } }
@@ -191,14 +199,14 @@ router.put("/:id", authMiddleware, adminMiddleware, async (req, res) => {
       if (deductOps.length > 0) await Product.bulkWrite(deductOps);
     }
 
-    // Update receipt document
-    const updated = await Receipt.findByIdAndUpdate(
+    // Update order document
+    const updated = await Order.findByIdAndUpdate(
       req.params.id,
       {
-        customerName: customerName || oldReceipt.customerName,
-        customerEmail: customerEmail !== undefined ? customerEmail : oldReceipt.customerEmail,
-        phone: phone !== undefined ? phone : oldReceipt.phone,
-        address: address !== undefined ? address : oldReceipt.address,
+        customerName: customerName || oldOrder.customerName,
+        customerEmail: customerEmail !== undefined ? customerEmail : oldOrder.customerEmail,
+        phone: phone !== undefined ? phone : oldOrder.phone,
+        address: address !== undefined ? address : oldOrder.address,
         ...(products && { products }),
         ...(totalAmount !== undefined && { totalAmount }),
       },
@@ -211,16 +219,16 @@ router.put("/:id", authMiddleware, adminMiddleware, async (req, res) => {
   }
 });
 
-// Delete receipt (Admin only)
+// Delete order (Admin only)
 router.delete("/:id", authMiddleware, adminMiddleware, async (req, res) => {
   try {
-    const receipt = await Receipt.findById(req.params.id);
-    if (!receipt) return res.status(404).json({ message: "Receipt not found" });
+    const order = await Order.findById(req.params.id);
+    if (!order) return res.status(404).json({ message: "Order not found" });
     
     // Only allow deletion if completed (or we can just leave it up to the admin)
     // The requirement says "when its completed" but admin can probably delete it anyway. Let's just delete it.
-    await Receipt.findByIdAndDelete(req.params.id);
-    res.json({ message: "Receipt deleted successfully" });
+    await Order.findByIdAndDelete(req.params.id);
+    res.json({ message: "Order deleted successfully" });
   } catch (error) {
     res.status(500).json({ error: error.message });
   }

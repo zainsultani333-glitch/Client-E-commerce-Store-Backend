@@ -25,14 +25,19 @@ router.post("/", async (req, res) => {
       message,
     });
 
-    // Send Email
-    await sendContactEmail({
-      firstName,
-      lastName: lastName || "",
-      email,
-      subject: subject || "General Inquiry",
-      message,
-    });
+    // Send Email (do not fail request if email fails)
+    try {
+      await sendContactEmail({
+        firstName,
+        lastName: lastName || "",
+        email,
+        subject: subject || "General Inquiry",
+        message,
+      });
+    } catch (emailError) {
+      console.error("Error sending contact email notification:", emailError);
+      // We still return 200 because the message was successfully saved to the DB
+    }
 
     res.status(200).json({ message: "Your message has been sent successfully!" });
   } catch (error) {

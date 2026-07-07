@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 
-const receiptSchema = new mongoose.Schema({
+const orderSchema = new mongoose.Schema({
   userId: {
     type: mongoose.Schema.Types.ObjectId,
     ref: "User",
@@ -44,9 +44,9 @@ const receiptSchema = new mongoose.Schema({
   },
   status: {
     type: String,
-    enum: ["pending", "processing", "completed", "cancelled"],
+    enum: ["pending", "processing", "shipped", "completed", "cancelled"],
     default: "pending"
   }
 }, { timestamps: true });
 
-module.exports = mongoose.model("Receipt", receiptSchema);
+module.exports = mongoose.model("Order", orderSchema);

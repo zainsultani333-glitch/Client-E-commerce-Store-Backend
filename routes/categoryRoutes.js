@@ -8,7 +8,7 @@ const router = express.Router();
 // Get all categories (Public or Admin depending on requirement, let's make it public so frontend can show them)
 router.get("/", async (req, res) => {
   try {
-    const categories = await Category.find().sort({ createdAt: -1 });
+    const categories = await Category.find().sort({ createdAt: 1 });
     res.json(categories);
   } catch (error) {
     res.status(500).json({ message: "Server error", error: error.message });
